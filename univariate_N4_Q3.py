@@ -37,7 +37,7 @@ xlabel = "[$\mathrm{Al}_2\mathrm{O}_3$]"
 f = lambda X, H_Si: N4_Q3_expectation(Tg, Na2O, B2O3, SiO2, H_Si, Al2O3,
                                       target_draws=(20, 40))
 
-# since f returns N4 and Q3, create a derivative lambda f_N4 that returns only N4
+# since f returns N4 and Q3, create lambda f_N4 that returns only N4
 f_N4 = lambda X, H_Si: f(X, H_Si)[0]
 
 # pass f_N4 to curve_fit
@@ -55,14 +55,16 @@ ax = fig.add_subplot(111)
 
 ax.plot(X, N4, label="Experiment", marker='s', color='black', lw=1)
 ax.plot(X, fitN4, label="$\mathrm{N}_4$ best-fit", marker='s', color='b', lw=1)
-ax.plot(X, fitQ3, label="$\mathrm{Q}_3$ predicted", marker='o', color='green', lw=1)
+ax.plot(X, fitQ3, label="$\mathrm{Q}_3$ predicted",
+        marker='o', color='green', lw=1)
 
 # Plot formatting
 
 ax.set_xlabel(xlabel)
 ax.legend(loc=1)
 ax.set_ylabel("Species fraction")
-ax.set_title("Wallenius 2-state speciation ( $^{[4]}\mathrm{B}$ and $^{[3]}\mathrm{Si}$ )", y=1.03)
+ax.set_title("Wallenius 2-state speciation " +\
+             "( $^{[4]}\mathrm{B}$ and $^{[3]}\mathrm{Si}$ )", y=1.03)
 ax.title.set_fontsize(18)
 for item in ([ax.xaxis.label, ax.yaxis.label]):
     item.set_fontsize(16)
