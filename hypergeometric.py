@@ -6,9 +6,14 @@ import traceback
 kB = 8.6173324e-5 # eV/K
 
 
-"""=========================================================================="""
-"""================================ UTILITY ================================="""
-"""=========================================================================="""
+
+#=============================================================================#
+#================================= UTILITY ===================================#
+#=============================================================================#
+
+        
+        
+        
 
 class Memoize(object):
     """
@@ -26,6 +31,8 @@ class Memoize(object):
         self.memo = {}
 
     def __call__(self, *args):
+        # cast to hashable form
+        args = tuple(args)
         if not self.memo.has_key(args):
             self.memo[args] = self.fn(*args)
         return self.memo[args]
@@ -51,40 +58,33 @@ def get_col(raw_data, col):
     return np.array(data)
 
 
-"""=========================================================================="""
-"""============================= PROBABILITIES =============================="""
-"""=========================================================================="""
+
+#=============================================================================#
+#============================== PROBABILITIES ================================#
+#=============================================================================#
 
 
-def p_next_draw(index, totals_drawn, initial_populations, weights=None, same_type=None):
+
+def p_draw(index, totals_drawn, initial_populations, weights, same_type=None):
     """
-    Probability the next draw selects a unit of the type indicated by [int: index],
-    given the [tuple: totals_drawn] so far, [tuple: initial_populations], and [tuple: weights]
-    of each type.
+    Probability that the next draw selects the [int: index] type, given 
+    the [array-like: totals_drawn] so far, [array-like: initial_populations], 
+    and [array-like: weights] of each type.
 
-    If two types of draws can occur for the same unit (e.g. trigonal boron could
-    be converted to tetrahedral (N4) or could be assigned NBO (N2)), same_type
-    should be a tuple containing the indices of these two types within the other
-    provided arrays so that the same population will be considered for both.
+    If two types of draws can occur for the same unit (e.g. trigonal 
+    boron could be converted to tetrahedral (N4) or could be assigned 
+    NBO (N2)), same_type should be an array-like containing the indices of 
+    these two types within the other provided arrays so that the same 
+    population will be considered for both.
     """
-
-    if weights == None:
-        weights = tuple([1]*len(initial_populations))
-
-    sites = zip(totals_drawn, initial_populations, weights)
-
-
-    # catch impossible situations
-    for n, g, w in sites:
-        if n < 0 or n > g:
-            return 0
-        if g == 0 and n != 0:
-            return 0
+    k, n, w = [np.array(arg) for arg in
+              [totals_drawn, initial_populations, weights]]
     if same_type == None:
-        np, gp, wp = sites[index]
-        return (gp - np)*wp / sum([(g - n)*w for n, g, w in sites])
+        p = (n-k)*w / np.dot(n-k, w)
+        return p[index]
     else:
         terms = []
+        sites = zip(k, n, w)
         for i, (n, g, w) in enumerate(sites):
             if i in same_type:
                 ni0 = sites[same_type[0]][0]
@@ -98,18 +98,20 @@ def p_next_draw(index, totals_drawn, initial_populations, weights=None, same_typ
 
 
 
-def p_totals_drawn(totals_drawn, initial_populations, weights=None, same_type=None):
+def p_totals_drawn(totals_drawn, initial_populations, weights, same_type=None):
     """
-    Probability that exactly [tuple: totals_drawn] units of each type will be
-    drawn after total_draws, given the [tuple: initial_populations]
-    and [tuple: weights] of each type of site.
+    Probability that exactly [array-like: totals_drawn] units of each type 
+    will be drawn after total_draws, given the [array-like: initial_populations]
+    and [array-like: weights] of each type of site.
 
-    If two types of draws can occur for the same unit (e.g. trigonal boron could
-    be converted to tetrahedral (N4) or could be assigned NBO (N2)), same_type
-    should be a tuple containing the indices of these two types within the other
-    provided arrays so that the same population will be considered for both.
+    If two types of draws can occur for the same unit (e.g. trigonal 
+    boron could be converted to tetrahedral (N4) or could be assigned 
+    NBO (N2)), same_type should be an array-like containing the indices of 
+    these two types within the other provided arrays so that the same 
+    population will be considered for both.
 
-    ** Details **
+    Details
+    =======
 
     This recursive function calculates the probability of one specific
     outcome, which is used in calculating the full probability distribution
@@ -117,36 +119,35 @@ def p_totals_drawn(totals_drawn, initial_populations, weights=None, same_type=No
     the expectation value (most probable outcome).
 
     This function should be Memoized to dramatically speed up calculation
-    of the probability distribution. As such, *arguments must be passed as
-    tuples rather than lists*.
+    of the probability distribution. 
 
-    Applicable for distribution of one modifier between multiple atomic sites
-    in glass (e.g. Na distributed among Al, B, and Si sites).
+    Applicable for distribution of one modifier between multiple atomic
+    sites in glass (e.g. Na distributed among Al, B, and Si sites).
 
     Algorithm rationale:
-        For k types of draws, there are up to k routes to arrive at a given
-        set of total draws (n0 ... nk). The sum of probabilities of each route
-        gives the total probability of reaching the situation (n0 ... nk).
+    --------------------
+    For k types of draws, there are up to k routes to arrive at a 
+    given set of total draws (n0 ... nk). The sum of probabilities 
+    of each route gives the total probability of reaching the 
+    situation (n0 ... nk).
 
-        For example, for three types of draws
-        (i, j, k) there are up to three routes:
+    For example, for three types of draws
+    (i, j, k) there are up to three routes:
 
-            p(route1) = p(nj and nk reached last draw) * p(ni reached this draw)
-            p(route2) = p(ni and nk reached last draw) * p(nj reached this draw)
-            p(route3) = p(ni and nj reached last draw) * p(nk reached this draw)
+      p(r1) = p(nj and nk reached last draw) * p(ni reached this draw)
+      p(r2) = p(ni and nk reached last draw) * p(nj reached this draw)
+      p(r3) = p(ni and nj reached last draw) * p(nk reached this draw)
 
-        The 'last draw' situation for each route is itself arrived at by up to
-        k possible routes, so the calculation becomes recursive.
+    The 'last draw' situation for each route is itself arrived at by 
+    up to k possible routes, so the calculation becomes recursive.
 
-        Fewer than k routes occur in the edge cases where at least one ni ... nk
-        is zero (e.g. there is only one route to (1, 0, 0); routes 2 and 3
-        above are not applicable). In the present implementation all k routes
-        are always considered, but the invalid routes are recognized as
-        'impossible situations' and return a probability of 0.
+    Fewer than k routes occur in the edge cases where at least one 
+    (ni ... nk) is zero (e.g. there is only one route to (1, 0, 0); 
+    routes 2 and 3 above are not applicable). In the present 
+    implementation all k routes are always considered, but the 
+    invalid routes are recognized as 'impossible situations' and 
+    return a probability of 0.
     """
-
-    if weights == None:
-        weights = tuple([1]*len(initial_populations))
 
     # rearrange arguments into (n, g, w) of each type
     types = zip(totals_drawn, initial_populations, weights)
@@ -176,7 +177,7 @@ def p_totals_drawn(totals_drawn, initial_populations, weights=None, same_type=No
             p_last = p_totals_drawn(prev_totals, initial_populations, weights, same_type)
 
             # probability this draw is consistent with this route
-            p_this = p_next_draw(route, prev_totals, initial_populations, weights, same_type)
+            p_this = p_draw(route, prev_totals, initial_populations, weights, same_type)
 
             p += p_last * p_this
 
@@ -188,32 +189,37 @@ p_totals_drawn = Memoize(p_totals_drawn)
 
 
 
-def P_distribution(total_draws, initial_populations, weights=None, same_type=None):
+def P_distribution(total_draws, initial_populations, weights, same_type=None):
     """
-    Probability distribution of p_totals_drawn() for all possible combinations
-    of totals_drawn that sum to [int: total_draws], given the
-    [tuple: initial_populations] and [tuple: weights] of each type of site.
+    Probability distribution of p_totals_drawn() for all possible 
+    combinations of totals_drawn that sum to [int: total_draws], 
+    given the [array-like: initial_populations] and [array-like: weights] 
+    of each type of site.
 
-    If two types of draws can occur for the same unit (e.g. trigonal boron could
-    be converted to tetrahedral (N4) or could be assigned NBO (N2)), same_type
-    should be a tuple containing the indices of these two types within the other
-    provided arrays so that the same population will be considered for both.
+    If two types of draws can occur for the same unit (e.g. trigonal 
+    boron could be converted to tetrahedral (N4) or could be assigned 
+    NBO (N2)), same_type should be an array-like containing the indices of 
+    these two types within the other provided arrays so that the same 
+    population will be considered for both.
 
-    ** Details **
+    Details
+    =======
 
     This function calculates the probabilities of all possible outcomes,
-    which are used to calculate the expectation value. The result is a matrix
-    of probabilities in k-1 dimensions, where k is the number of types of draws.
+    which are used to calculate the expectation value. The result is a 
+    matrix of probabilities in k-1 dimensions, where k is the number of 
+    types of draws.
 
-    Note that k-1 dimensions are sufficient to represent all nontrivial values:
-    Once total_draws and the numbers of draws for each species n0 ... nk-1 are
-    specified, nk is uniquely determined [nk = total_draws - sum(n0 ... nk-1)].
+    Note that k-1 dimensions are sufficient to represent all nontrivial 
+    values: Once total_draws and the numbers of draws for each species 
+    (n0 ... nk-1) are specified, nk is uniquely determined 
+    (nk = total_draws - sum(n0 ... nk-1)).
 
-    The recursive function p_totals_drawn should be Memoized to dramatically
-    reduce calculation time.
+    The recursive function p_totals_drawn should be Memoized to 
+    dramatically reduce calculation time.
 
-    Applicable for distribution of one modifier between multiple atomic sites
-    in glass (e.g. Na distributed among Al, B, and Si sites).
+    Applicable for distribution of one modifier between multiple atomic 
+    sites in glass (e.g. Na distributed among Al, B, and Si sites).
     """
 
     # dump old cache to prevent running out of memory during curve fitting
@@ -225,11 +231,13 @@ def P_distribution(total_draws, initial_populations, weights=None, same_type=Non
         totals_drawn = [n for n in totals_drawn]
         totals_drawn.append(total_draws - sum(totals_drawn))
         totals_drawn = tuple(totals_drawn)
-        P[totals_drawn[:-1][::-1]] = p_totals_drawn(totals_drawn, initial_populations, weights, same_type)
+        P[totals_drawn[:-1][::-1]] = p_totals_drawn(
+                totals_drawn, initial_populations, weights, same_type)
 
     # consistency check
     if np.abs(np.sum(P) - 1.0) > 0.01:
-        print 'Warning: total probability of all possible outcomes deviates from 1: {} !!'.format(1.0 - np.sum(P))
+        print 'Warning: total probability of all possible outcomes ' + \
+                'deviates from 1: {} !!'.format(1.0 - np.sum(P))
 
     return P
 
@@ -239,33 +247,36 @@ def P_distribution(total_draws, initial_populations, weights=None, same_type=Non
 
 def expectation(total_draws, P_distribution):
     """
-    Expectation values of total draws of each draw type associated with the given
-    probability distribution [array: P_distribution]. The result is a 1D array
-    with length equal to the number of types of draws. For example, in a
-    system with three draw types i, j, k, the expectation E will take the form
-    [Ei, Ej, Ek] with sum([Ei, Ej, Ek]) == [int: total_draws].
+    Expectation values of total draws of each draw type associated 
+    with the given probability distribution [array: P_distribution]. 
+    The result is a 1D array with length equal to the number of types
+    of draws. For example, in a system with three draw types i, j, k, 
+    the expectation E will take the form [Ei, Ej, Ek] with 
+    sum([Ei, Ej, Ek]) == [int: total_draws].
 
-    As expectation is calculated by weighted averages of individual probabilities,
-    the results are not integers even though actual draw outcomes can only be
-    integers. If used to predict the most likely actual outcome of a specific
-    number of draws and specific population sizes, the values should be rounded.
+    As expectation is calculated by weighted averages of individual 
+    probabilities, the results are not integers even though actual 
+    draw outcomes can only be integers. If used to predict the most 
+    likely actual outcome of a specific number of draws and specific 
+    population sizes, the values should be rounded.
 
-    In the case of modifier distribution in glass it is presumed that the
-    system can be scaled to arbitrary size and expressed in terms of a
-    normalized composition (e.g. as mol %s of individual oxides). Likewise the
-    modifier distribution of interest is only the relative fraction of modifier
-    associated with each type of site, and in this case integer values are not
-    expected. The explicit calculation of a specific number of draws is thus
-    abstracted to the general case by normalizing the result, i.e. dividing
-    the expected values of each type of draw by the number of total draws to
-    obtain the relative population fractions of each type.
+    In the case of modifier distribution in glass it is presumed that 
+    the system can be scaled to arbitrary size and expressed in terms
+    of a normalized composition (e.g. as mol %s of individual oxides). 
+    Likewise the modifier distribution of interest is only the relative 
+    fraction of modifier associated with each type of site, and in this 
+    case integer values are not expected. The explicit calculation of a 
+    specific number of draws is thus abstracted to the general case by 
+    normalizing the result, i.e. dividing the expected values of each 
+    type of draw by the number of total draws to obtain the relative 
+    population fractions of each type.
 
-    In practice systems involving up to about 150 draws can be calculated
-    before exceeding the (default) maximum recursion depth. In application
-    to modifier distribution in glasses, this means systems of only a few
-    hundred or thousand total atoms can be considered, however the relative
-    modifier distribution remains approximately constant when the size of the
-    system is scaled.
+    In practice systems involving up to about 150 draws can be
+    calculated before exceeding the (default) maximum recursion depth. 
+    In application to modifier distribution in glasses, this means 
+    systems of only a few hundred or thousand total atoms can be 
+    considered, however the relative modifier distribution remains 
+    approximately constant when the size of the system is scaled.
 
     Example:
     >>> total_draws = 3
@@ -308,28 +319,30 @@ def chi_sq(data, best_fit):
 
 
 
-"""=========================================================================="""
-"""============================== GLASS MODELS =============================="""
-"""=========================================================================="""
+#=============================================================================#
+#================================ GLASS MODELS ===============================#
+#=============================================================================#
 
-def N4_Q3_expectation(TG, M2O, B2O3, SiO2, H_Si, Al2O3=None, target_draws=100, verbose=False):
+def N4_Q3_expectation(TG, M2O, B2O3, SiO2, H_Si, Al2O3=None, \
+                      target_draws=100, verbose=False):
     """ N4 and Q3 expectation for a given composition M2O-B2O3-Al2O3-SiO2,
-    where Al is assumed to preferentially consume modifier M, such that only
-    excess modifier ([M2O - Al2O3]) is partitioned between two possibilities:
-    tetrahedral boron conversion (N4), and NBO creation on Si tetrahedra (Q3).
+    where Al is assumed to preferentially consume modifier M, such that 
+    only excess modifier ([M2O - Al2O3]) is partitioned between two 
+    possibilities: tetrahedral boron conversion (N4), and NBO creation 
+    on Si tetrahedra (Q3).
 
-    Values of TG, M2O, B2O3, SiO2, and Al2O3 can be passed as scalars for
-    a single composition, or arrays for a composition series. TG should have
-    units of K and the others should represent mol fractions.
+    Values of TG, M2O, B2O3, SiO2, and Al2O3 can be passed as scalars 
+    for a single composition, or arrays for a composition series. TG 
+    should have units of K and the others should represent mol fractions.
 
     The value of H_Si indicates the enthalpy associated with forming an
     NBO on a Si tetrahedron relative to forming a tetrahedral B unit.
 
-    The composition will be scaled to an integer number of draws. The number
-    can be specified by providing an integer for target_draws, or a tuple
-    indicating a range can be provided. In the latter case, the number within
-    this range will be found that provides the best approximation to the
-    given composition (minimum rounding error).
+    The composition will be scaled to an integer number of draws. The 
+    number can be specified by providing an integer for target_draws, 
+    or an array-like indicating a range can be provided. In the latter case, 
+    the number within this range will be found that provides the best 
+    approximation to the given composition (minimum rounding error).
 
     Note that using many draws can greatly increase calculation time.
     """
@@ -344,7 +357,8 @@ def N4_Q3_expectation(TG, M2O, B2O3, SiO2, H_Si, Al2O3=None, target_draws=100, v
     except:
         if Al2O3 is None:
             Al2O3 = 0
-        TG, M2O, B2O3, SiO2, Al2O3 = [np.array([item]) for item in [TG, M2O, B2O3, SiO2, Al2O3]]
+        TG, M2O, B2O3, SiO2, Al2O3 = [np.array([item]) 
+                                      for item in [TG, M2O, B2O3, SiO2, Al2O3]]
 
     # Two-state model
     M2O = np.maximum(M2O - Al2O3, 0)
@@ -364,12 +378,14 @@ def N4_Q3_expectation(TG, M2O, B2O3, SiO2, H_Si, Al2O3=None, target_draws=100, v
 
             # if range of target draws:
             try:
-                draws_range = [draws for draws in range(target_draws[0], target_draws[-1] + 1)]
+                draws_range = [draws for draws in range(
+                               target_draws[0], target_draws[-1] + 1)]
                 ssqs = []
                 for draws in draws_range:
                     s = draws/m
 
-                    residuals = np.array([round(element*s)/(element*s) for element in [gSi, gB, gAl, m] if element != 0])
+                    residuals = np.array([round(element*s)/(element*s) 
+                        for element in [gSi, gB, gAl, m] if element != 0])
                     ssq = chi_sq(np.ones(len(residuals)), residuals)
                     ssqs.append(ssq)
 
@@ -380,7 +396,8 @@ def N4_Q3_expectation(TG, M2O, B2O3, SiO2, H_Si, Al2O3=None, target_draws=100, v
                 min_index = ssqs.index(min_ssq)
                 adjusted_draws = draws_range[min_index]
                 if verbose:
-                    print 'Min ssq: {} at {} draws\n'.format(min_ssq, adjusted_draws)
+                    print 'Min ssq: {} at {} draws\n'.format(
+                            min_ssq, adjusted_draws)
             except:
                 traceback.print_exc()
                 adjusted_draws = target_draws
@@ -414,25 +431,26 @@ def N4_Q3_expectation(TG, M2O, B2O3, SiO2, H_Si, Al2O3=None, target_draws=100, v
 
 
 
-def N4_L4_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_Al, target_draws=(20,40), verbose=False):
-    """ N4, L4, and Q3 expectation for a given composition M2O-B2O3-Al2O3-SiO2,
-    where modifier is partitioned between three possibilities: tetrahedral boron
-    conversion (N4), tetrahedral Al conversion (L4), and NBO creation on Si
-    tetrahedra (Q3).
+def N4_L4_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_Al, 
+                         target_draws=(20,40), verbose=False):
+    """ N4, L4, and Q3 expectation for a given composition 
+    M2O-B2O3-Al2O3-SiO2, where modifier is partitioned between three 
+    possibilities: tetrahedral boron conversion (N4), tetrahedral Al 
+    conversion (L4), and NBO creation on Si tetrahedra (Q3).
 
-    Values of TG, M2O, B2O3, SiO2, and Al2O3 can be passed as scalars for
-    a single composition, or arrays for a composition series. TG should have
-    units of K and the others should represent mol fractions.
+    Values of TG, M2O, B2O3, SiO2, and Al2O3 can be passed as scalars 
+    for a single composition, or arrays for a composition series. TG 
+    should have units of K and the others should represent mol fractions.
 
-    Values of H_Si and H_Al indicate the enthalpy associated with forming an
-    NBO on a Si tetrahedron or forming a tetrahedral Al unit, relative to
-    forming a tetrahedral B unit.
+    Values of H_Si and H_Al indicate the enthalpy associated with 
+    forming an NBO on a Si tetrahedron or forming a tetrahedral Al 
+    unit, relative to forming a tetrahedral B unit.
 
-    The composition will be scaled to an integer number of draws. The number
-    can be specified by providing an integer for target_draws, or a tuple
-    indicating a range can be provided. In the latter case, the number within
-    this range will be found that provides the best approximation to the
-    given composition (minimum rounding error).
+    The composition will be scaled to an integer number of draws. The 
+    number can be specified by providing an integer for target_draws, 
+    or an array-like indicating a range can be provided. In the latter case, 
+    the number within this range will be found that provides the best 
+    approximation to the given composition (minimum rounding error).
 
     Note that using many draws can greatly increase calculation time.
     """
@@ -452,7 +470,8 @@ def N4_L4_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_Al, target_draws=(2
     try:
         len(M2O)
     except:
-        TG, M2O, B2O3, SiO2, Al2O3 = [np.array([item]) for item in [TG, M2O, B2O3, SiO2, Al2O3]]
+        TG, M2O, B2O3, SiO2, Al2O3 = [np.array([item]) 
+                                      for item in [TG, M2O, B2O3, SiO2, Al2O3]]
 
     for i, m2o in enumerate(M2O):
         gSi = SiO2[i]
@@ -465,12 +484,14 @@ def N4_L4_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_Al, target_draws=(2
         wAl = np.exp(-H_Al/kB/Tg)
 
         try:
-            draws_range = [draws for draws in range(target_draws[0], target_draws[-1] + 1)]
+            draws_range = [draws for draws in range(
+                           target_draws[0], target_draws[-1] + 1)]
             ssqs = []
             for draws in draws_range:
                 s = draws/m
 
-                residuals = np.array([round(element*s)/(element*s) for element in [gSi, gB, gAl, m] if element != 0])
+                residuals = np.array([round(element*s)/(element*s) 
+                             for element in [gSi, gB, gAl, m] if element != 0])
 
                 ssq = chi_sq(np.ones(len(residuals)), residuals)
                 ssqs.append(ssq)
@@ -482,7 +503,8 @@ def N4_L4_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_Al, target_draws=(2
             min_index = ssqs.index(min_ssq)
             adjusted_draws = draws_range[min_index]
             if verbose:
-                print 'Min ssq: {} at {} draws\n'.format(min_ssq, adjusted_draws)
+                print 'Min ssq: {} at {} draws\n'.format(
+                        min_ssq, adjusted_draws)
         except:
             traceback.print_exc()
             adjusted_draws = target_draws
@@ -534,26 +556,28 @@ def N4_L4_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_Al, target_draws=(2
 
 
 
-def N4_N2_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_B2, target_draws=(20,40), verbose=False):
-    """ N4, N2, and Q3 expectation for a given composition M2O-B2O3-Al2O3-SiO2,
-    where Al is assumed to preferentially consume modifier M, such that only
-    excess modifier ([M2O - Al2O3]) is partitioned between three possibilities:
-    tetrahedral boron conversion (N4), NBO creation on trigonal boron (N2),
-    and NBO creation on Si tetrahedra (Q3).
+def N4_N2_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_B2, 
+                         target_draws=(20,40), verbose=False):
+    """ N4, N2, and Q3 expectation for a given composition 
+    M2O-B2O3-Al2O3-SiO2, where Al is assumed to preferentially 
+    consume modifier M, such that only excess modifier ([M2O - Al2O3]) 
+    is partitioned between three possibilities: tetrahedral boron 
+    conversion (N4), NBO creation on trigonal boron (N2), and NBO 
+    creation on Si tetrahedra (Q3).
 
-    Values of TG, M2O, B2O3, SiO2, and Al2O3 can be passed as scalars for
-    a single composition, or arrays for a composition series. TG should have
-    units of K and the others should represent mol fractions.
+    Values of TG, M2O, B2O3, SiO2, and Al2O3 can be passed as scalars 
+    for a single composition, or arrays for a composition series. TG 
+    should have units of K and the others should represent mol fractions.
 
-    Values of H_Si and H_B2 indicate the enthalpy associated with forming an
-    NBO on a Si tetrahedron or on a trigonal B, relative to forming a tetrahedral
-    B unit.
+    Values of H_Si and H_B2 indicate the enthalpy associated with 
+    forming an NBO on a Si tetrahedron or on a trigonal B, relative 
+    to forming a tetrahedral B unit.
 
-    The composition will be scaled to an integer number of draws. The number
-    can be specified by providing an integer for target_draws, or a tuple
-    indicating a range can be provided. In the latter case, the number within
-    this range will be found that provides the best approximation to the
-    given composition (minimum rounding error).
+    The composition will be scaled to an integer number of draws. 
+    The number can be specified by providing an integer for target_draws, 
+    or an array-like indicating a range can be provided. In the latter case, 
+    the number within this range will be found that provides the best 
+    approximation to the given composition (minimum rounding error).
 
     Note that using many draws can greatly increase calculation time.
     """
@@ -572,7 +596,8 @@ def N4_N2_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_B2, target_draws=(2
     try:
         len(M2O)
     except:
-        TG, M2O, B2O3, SiO2, Al2O3 = [np.array([item]) for item in [TG, M2O, B2O3, SiO2, Al2O3]]
+        TG, M2O, B2O3, SiO2, Al2O3 = [np.array([item]) 
+                                      for item in [TG, M2O, B2O3, SiO2, Al2O3]]
 
     M2O = np.maximum(M2O - Al2O3, 0)
 
@@ -592,11 +617,13 @@ def N4_N2_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_B2, target_draws=(2
             wB2 = np.exp(-H_B2/kB/Tg)
 
             try:
-                draws_range = [draws for draws in range(target_draws[0], target_draws[-1] + 1)]
+                draws_range = [draws for draws in range(
+                                        target_draws[0], target_draws[-1] + 1)]
                 ssqs = []
                 for draws in draws_range:
                     s = draws/m
-                    residuals = np.array([round(element*s)/(element*s) for element in [gSi, gB, gAl, m] if element != 0])
+                    residuals = np.array([round(element*s)/(element*s) 
+                        for element in [gSi, gB, gAl, m] if element != 0])
                     ssq = chi_sq(np.ones(len(residuals)), residuals)
                     ssqs.append(ssq)
 
@@ -607,7 +634,8 @@ def N4_N2_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_B2, target_draws=(2
                 min_index = ssqs.index(min_ssq)
                 adjusted_draws = draws_range[min_index]
                 if verbose:
-                    print 'Min ssq: {} at {} draws\n'.format(min_ssq, adjusted_draws)
+                    print 'Min ssq: {} at {} draws\n'.format(
+                                    min_ssq, adjusted_draws)
             except:
                 traceback.print_exc()
                 adjusted_draws = target_draws[-1]
@@ -618,7 +646,8 @@ def N4_N2_Q3_expectation(TG, M2O, B2O3, SiO2, Al2O3, H_Si, H_B2, target_draws=(2
             gAl = round(gAl*s)
             m = round(m*s)
 
-            P = P_distribution(m, (gB, gB, gSi), (1, wB2, wSi), same_type=(0,1))
+            P = P_distribution(m, (gB, gB, gSi), (1, wB2, wSi), 
+                               same_type=(0,1))
 
             nB4, nB2, nSi = expectation(m, P)
 

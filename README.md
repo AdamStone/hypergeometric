@@ -37,6 +37,7 @@ This approach calculates expectation values for fraction of tetrahedral boron (N
 
 ![Bivariate N4, N2, Q3 best fit](/plots/Bivariate_N4_N2_Q3.png)
 
+It should be noted that although this appears to produce the best fit, it also relies on an additional fitting parameter and may not be physically meaningful. Indeed, this fit suggests that at low Al2O3 content, *all* trigonal boron is converted to either tetrahedral units (N4) or partially depolymerized (N2) units with a nonbridging oxygen, which is not the expected behavior. This anomaly could indicate that other more important mechanisms exist which have not been included in the model (such as the 'avoidance rules' of the Dell-Bray model), and the fitting parameter intended to model NBO-on-B is capturing these effects.
 
 Dependencies
 ------------
