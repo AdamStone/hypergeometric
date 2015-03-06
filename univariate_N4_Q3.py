@@ -6,7 +6,6 @@ Considers two possible outcomes for modifier partitioning:
 
 When present, Al2O3 is assumed to preferentially consume available modifier
 such that only the remainder will be partitioned.
-
 """
 
 from scipy.optimize import curve_fit
@@ -15,7 +14,7 @@ import matplotlib.pyplot as plt
 
 from hypergeometric import get_data, get_col, N4_Q3_expectation, chi_sq
 
-font = { 'family': 'Arial' }
+font = {'family': 'Arial'}
 matplotlib.rc('font', **font)
 
 # get Zheng2012 data
@@ -25,8 +24,6 @@ Tg = get_col(data, 4)
 N4 = get_col(data, 5)/100
 X = Al2O3    # plot vs Al2O3
 xlabel = "[$\mathrm{Al}_2\mathrm{O}_3$]"
-
-
 
 
 #-- Fit N4 calculation to data using scipy's curve_fit --#
@@ -63,8 +60,8 @@ ax.plot(X, fitQ3, label="$\mathrm{Q}_3$ predicted",
 ax.set_xlabel(xlabel)
 ax.legend(loc=1)
 ax.set_ylabel("Species fraction")
-ax.set_title("Wallenius 2-state speciation " +\
-             "( $^{[4]}\mathrm{B}$ and $^{[3]}\mathrm{Si}$ )", y=1.03)
+ax.set_title(("Wallenius 2-state speciation "
+              "( $^{[4]}\mathrm{B}$ and $^{[3]}\mathrm{Si}$ )"), y=1.03)
 ax.title.set_fontsize(18)
 for item in ([ax.xaxis.label, ax.yaxis.label]):
     item.set_fontsize(16)
