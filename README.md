@@ -63,7 +63,7 @@ A discussion of the details of each function used in this implementation can be 
   A. Fog - Biased Urn Theory <http://cran.r-project.org/web/packages/BiasedUrn/vignettes/UrnTheory.pdf>
 
 
-  License
-  -------
+License
+-------
 
-  MIT
+MIT
