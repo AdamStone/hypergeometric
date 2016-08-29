@@ -3,12 +3,12 @@ hypergeometric
 
 Scripts for calculating Wallenius noncentral hypergeometric distributions and their application to statistical distribution of modifier in aluminoborosilicate glasses. In analogy with the classic problem of drawing marbles from an urn, each alkali atom is said to "draw" a particular site, one at a time, without replacement, until all available alkali are exhausted. Based on the theory presented in "Statistics of modifier distributions in mixed network glasses" (2013, Mauro) <http://dx.doi.org/10.1063/1.4773356>.
 
-hypergeometric.py contains a recursive implementation of the multivariate noncentral Wallenius hypergeometric distribution, and three different approaches for estimating alkali distribution in aluminoborosilicate glasses. In each approach, for a given composition or set of compositions and given values of relative enthalpy associated with drawing each type of site, expectation values are calculated estimating the relative fraction of modifier associated with each type of site. 
+hypergeometric.py contains a recursive implementation of the multivariate noncentral Wallenius hypergeometric distribution, and three different approaches for estimating alkali distribution in aluminoborosilicate glasses. In each approach, for a given composition or set of compositions and given values of relative enthalpy associated with drawing each type of site, expectation values are calculated estimating the relative fraction of modifier associated with each type of site.
 
 Fitting to data
 ---------------
 
-The other three included .py files apply these three expectation value calculations to the composition series given in "Structure of boroaluminosilicate glasses: Impact of [Al2O3]/[SiO2] ratio on the structural role of sodium" (2012, Zheng et al.) <http://dx.doi.org/10.1103/PhysRevB.86.054203>. Calculated N4 are fit against the measured N4 provided in Table 1. The relative enthalpies of each type of draw are treated as fitting parameters. The resulting best fit is then plotted against the source data to yield a result comparable to Fig. 11 in the paper. 
+The other three included .py files apply these three expectation value calculations to the composition series given in "Structure of boroaluminosilicate glasses: Impact of [Al2O3]/[SiO2] ratio on the structural role of sodium" (2012, Zheng et al.) <http://dx.doi.org/10.1103/PhysRevB.86.054203>. Calculated N4 are fit against the measured N4 provided in Table 1. The relative enthalpies of each type of draw are treated as fitting parameters. The resulting best fit is then plotted against the source data to yield a result comparable to Fig. 11 in the paper.
 
 Details and example plots for each of these scripts are summarized below.
 
@@ -48,7 +48,7 @@ Numpy, Scipy, Matplotlib
 Further reading
 ---------------
 
-A discussion of the details of each function used in this implementation can be found in the source code. Resources I used to understand the problem and develop a generalized solution are included below. My implementation can be considered a multivariate generalization of the univariate recursive solution described in the first paper by Fog. 
+A discussion of the details of each function used in this implementation can be found in the source code. Resources I used to understand the problem and develop a generalized solution are included below. My implementation can be considered a multivariate generalization of the univariate recursive solution described in the first paper by Fog.
 
   An overview of the theory and analysis of its application to a model glass system with two network formers is presented in "Statistics of modifier distributions in mixed network glasses" (2013, Mauro) <http://dx.doi.org/10.1063/1.4773356>
 
@@ -61,5 +61,9 @@ A discussion of the details of each function used in this implementation can be 
   A. Fog - Sampling Methods for Wallenius' and Fisher's Noncentral Hypergeometric Distributions <http://www.agner.org/random/theory/nchyp2.pdf>
 
   A. Fog - Biased Urn Theory <http://cran.r-project.org/web/packages/BiasedUrn/vignettes/UrnTheory.pdf>
-  
-  
+
+
+  License
+  -------
+
+  MIT
